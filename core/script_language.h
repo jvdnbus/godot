@@ -31,6 +31,7 @@
 #ifndef SCRIPT_LANGUAGE_H
 #define SCRIPT_LANGUAGE_H
 
+#include "io/multiplayer_api.h"
 #include "map.h"
 #include "pair.h"
 #include "resource.h"
@@ -157,16 +158,8 @@ public:
 
 	virtual bool is_placeholder() const { return false; }
 
-	enum RPCMode {
-		RPC_MODE_DISABLED,
-		RPC_MODE_REMOTE,
-		RPC_MODE_SYNC,
-		RPC_MODE_MASTER,
-		RPC_MODE_SLAVE,
-	};
-
-	virtual RPCMode get_rpc_mode(const StringName &p_method) const = 0;
-	virtual RPCMode get_rset_mode(const StringName &p_variable) const = 0;
+	virtual MultiplayerAPI::RPCMode get_rpc_mode(const StringName &p_method) const = 0;
+	virtual MultiplayerAPI::RPCMode get_rset_mode(const StringName &p_variable) const = 0;
 
 	virtual ScriptLanguage *get_language() = 0;
 	virtual ~ScriptInstance();
@@ -203,6 +196,7 @@ public:
 	virtual void make_template(const String &p_class_name, const String &p_base_class_name, Ref<Script> &p_script) {}
 	virtual bool is_using_templates() { return false; }
 	virtual bool validate(const String &p_script, int &r_line_error, int &r_col_error, String &r_test_error, const String &p_path = "", List<String> *r_functions = NULL) const = 0;
+	virtual String validate_path(const String &p_path) const { return ""; }
 	virtual Script *create_script() const = 0;
 	virtual bool has_named_classes() const = 0;
 	virtual bool supports_builtin_mode() const = 0;
@@ -220,7 +214,9 @@ public:
 			RESULT_CLASS,
 			RESULT_CLASS_CONSTANT,
 			RESULT_CLASS_PROPERTY,
-			RESULT_CLASS_METHOD
+			RESULT_CLASS_METHOD,
+			RESULT_CLASS_ENUM,
+			RESULT_CLASS_TBD_GLOBALSCOPE
 		};
 		Type type;
 		Ref<Script> script;
@@ -233,6 +229,8 @@ public:
 
 	virtual void auto_indent_code(String &p_code, int p_from_line, int p_to_line) const = 0;
 	virtual void add_global_constant(const StringName &p_variable, const Variant &p_value) = 0;
+	virtual void add_named_global_constant(const StringName &p_name, const Variant &p_value) {}
+	virtual void remove_named_global_constant(const StringName &p_name) {}
 
 	/* MULTITHREAD FUNCTIONS */
 
@@ -327,8 +325,8 @@ public:
 
 	virtual bool is_placeholder() const { return true; }
 
-	virtual RPCMode get_rpc_mode(const StringName &p_method) const { return RPC_MODE_DISABLED; }
-	virtual RPCMode get_rset_mode(const StringName &p_variable) const { return RPC_MODE_DISABLED; }
+	virtual MultiplayerAPI::RPCMode get_rpc_mode(const StringName &p_method) const { return MultiplayerAPI::RPC_MODE_DISABLED; }
+	virtual MultiplayerAPI::RPCMode get_rset_mode(const StringName &p_variable) const { return MultiplayerAPI::RPC_MODE_DISABLED; }
 
 	PlaceHolderScriptInstance(ScriptLanguage *p_language, Ref<Script> p_script, Object *p_owner);
 	~PlaceHolderScriptInstance();
@@ -383,6 +381,7 @@ public:
 	bool is_breakpoint(int p_line, const StringName &p_source) const;
 	bool is_breakpoint_line(int p_line) const;
 	void clear_breakpoints();
+	const Map<int, Set<StringName> > &get_breakpoints() const { return breakpoints; }
 
 	virtual void debug(ScriptLanguage *p_script, bool p_can_continue = true) = 0;
 	virtual void idle_poll();
